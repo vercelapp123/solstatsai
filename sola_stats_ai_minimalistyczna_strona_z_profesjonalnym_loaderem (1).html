@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SolaStats AI — Solana portfolio insights</title>
+  <meta name="description" content="A sleek, professional interface for quick Solana wallet insights with an elegant infinite loader." />
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="32" y2="32"><stop stop-color="%23a78bfa"/><stop offset="0.6" stop-color="%2322c55e"/><stop offset="1" stop-color="%2306b6d4"/></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="6" fill="%23ffffff10"/><path d="M6 11c3-3 8-5 11-5 5 0 9 2 9 5 0 4-4 5-10 5-3 0-5 1-7 3" stroke="url(%23g)" stroke-width="3" fill="none" stroke-linecap="round"/></svg>' />
+  <style>
+    /* ====== Reset & base ====== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; color: #e9ecf1; background: #0b0e13; }
+    :root{
+      --bg-1: #0b0e13;  /* deep space */
+      --bg-2: #0f1320;  /* dusk */
+      --card: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.12);
+      --muted: #9aa4b2;
+      --accent-1: #8b5cf6;  /* violet */
+      --accent-2: #22c55e;  /* solana green */
+      --accent-3: #06b6d4;  /* cyan */
+      --ring: conic-gradient(from 0deg, var(--accent-1), var(--accent-3), var(--accent-2), var(--accent-1));
+    }
+
+    /* ====== Animated background ====== */
+    .bg-animated{
+      position: fixed; inset: 0; z-index: -1; overflow: hidden;
+      background: radial-gradient(1200px 800px at 10% -10%, rgba(139,92,246,0.12), transparent 60%),
+                  radial-gradient(1000px 700px at 110% 20%, rgba(6,182,212,0.10), transparent 60%),
+                  radial-gradient(900px 700px at 50% 120%, rgba(34,197,94,0.10), transparent 60%),
+                  linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      filter: saturate(1.1);
+    }
+
+    /* Subtle floating blobs */
+    .blob{ position:absolute; border-radius:50%; filter: blur(50px); opacity:.35; animation: float 18s ease-in-out infinite; }
+    .blob:nth-child(1){ width:520px;height:520px; left:-120px; top:-120px; background:#8b5cf6; }
+    .blob:nth-child(2){ width:420px;height:420px; right:-100px; top:10%; background:#06b6d4; animation-delay: -5s; }
+    .blob:nth-child(3){ width:460px;height:460px; left:55%; bottom:-160px; background:#22c55e; animation-delay: -9s; }
+    @keyframes float{ 0%,100%{ transform: translateY(0) translateX(0) scale(1); } 50%{ transform: translateY(-20px) translateX(10px) scale(1.02); } }
+
+    /* ====== Layout ====== */
+    .container{ max-width: 980px; margin: 0 auto; padding: 24px; }
+    header{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding: 20px 0; }
+    .brand{ display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit; }
+    .logo{ width:36px;height:36px; border-radius:10px; position:relative; background: var(--ring); }
+    .logo::after{ content:""; position:absolute; inset:2px; border-radius:8px; background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(0,0,0,.35)); backdrop-filter: blur(4px); }
+    .brand span{ font-weight:700; letter-spacing:.3px; }
+    .logo-svg{ width:36px;height:36px; display:block; border-radius:10px; filter: drop-shadow(0 6px 14px rgba(6,182,212,.25)); }
+    .pill{ border: 1px solid var(--border); background: var(--card); padding:8px 12px; border-radius:999px; color:var(--muted); font-size:12px; }
+
+    .card{ border:1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); backdrop-filter: blur(10px); border-radius:18px; padding:28px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .hero{ display:grid; grid-template-columns:1.2fr; gap:18px; align-items:center; padding: 24px 0 48px; }
+    h1{ font-size: clamp(28px, 4.5vw, 44px); line-height:1.1; margin:0; letter-spacing:.2px; }
+    .gradient{ background: linear-gradient(90deg, #fff, #c7d2fe 35%, #a7f3d0 70%); -webkit-background-clip:text; background-clip:text; color: transparent; }
+    p.lead{ color: var(--muted); margin: 8px 0 0; font-size: 15px; }
+
+    .input-wrap{ display:flex; gap:10px; align-items:center; margin-top:18px; }
+    .field{ position:relative; flex:1; }
+    .field input{
+      width:100%; height:56px; border-radius:14px; border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color:#e9ecf1; outline:none; padding: 0 46px 0 48px; font-size:15px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+      transition: box-shadow .2s, border-color .2s, transform .06s;
+    }
+    .field input::placeholder{ color:#9aa4b2; }
+    .field input:focus{ border-color: rgba(139,92,246,.65); box-shadow: 0 0 0 3px rgba(139,92,246,.15); }
+    .field .icon{ position:absolute; left:14px; top:50%; transform:translateY(-50%); opacity:.9; }
+
+    .btn{
+      height:56px; min-width:140px; border-radius:14px; border:1px solid rgba(255,255,255,.2);
+      color:#0b0e13; font-weight:700; letter-spacing:.2px; cursor:pointer; padding: 0 18px;
+      background: linear-gradient(135deg, #a78bfa, #22c55e 60%, #06b6d4);
+      transition: transform .06s ease, filter .15s ease; box-shadow: 0 8px 24px rgba(6,182,212,.25);
+    }
+    .btn:hover{ filter: brightness(1.05); }
+    .btn:active{ transform: translateY(1px); }
+
+    .disclaimer{ color:var(--muted); font-size:12px; margin-top:8px; }
+
+    /* ====== Overlay Loader ====== */
+    .overlay{ position:fixed; inset:0; display:none; place-items:center; background: rgba(3,6,12,.55); backdrop-filter: blur(6px); z-index:40; }
+    .overlay.show{ display:grid; }
+
+    .loader-card{ width:min(520px, 92vw); border-radius:20px; padding:28px; border:1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)); box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+    .loader-head{ display:flex; align-items:center; gap:12px; }
+    .ring{ position:relative; width:72px; height:72px; border-radius:50%; display:grid; place-items:center; }
+    .ring::before{
+      content:""; position:absolute; inset:-4px; border-radius:inherit; background: var(--ring); filter: blur(.5px);
+      animation: spin 1.2s linear infinite; mask: radial-gradient(circle 32px, transparent 54%, black 56%);
+    }
+    .ring::after{ content:""; width:56px; height:56px; border-radius:50%; background: rgba(255,255,255,.06); border:1px solid var(--border); backdrop-filter: blur(2px); }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
+    .status{ margin-top:18px; color:#d6dbe3; font-size:14px; line-height:1.55; }
+    .status .dot{ display:inline-block; width:6px; height:6px; background:#22c55e; border-radius:999px; margin-right:8px; animation: pulse 1.2s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(34,197,94,.7); }
+    @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.6);} 70%{ box-shadow:0 0 0 10px rgba(34,197,94,0);} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0);} }
+
+    .steps{ display:grid; grid-template-columns: 1fr; gap:8px; margin-top:14px; }
+    .step{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+    .skeleton{ height:10px; width:100%; background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.12), rgba(255,255,255,.06)); background-size:200% 100%; animation: shimmer 1.2s linear infinite; border-radius:999px; }
+    @keyframes shimmer{ 0%{ background-position:200% 0;} 100%{ background-position:-200% 0;} }
+
+    footer{ padding: 36px 0 26px; color: var(--muted); font-size: 12px; text-align:center; }
+    a.muted{ color: var(--muted); text-decoration: none; }
+    a.muted:hover{ text-decoration: underline; }
+    
+    /* ====== Results View ====== */
+    .hidden{ display:none !important; }
+    #view-results{ padding: 12px 0 56px; }
+    .results-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .badge{ padding:6px 10px; border-radius:999px; border:1px solid var(--border); background: var(--card); font-size:12px; color:var(--muted); }
+    .results-grid{ display:grid; grid-template-columns: 1fr; gap:18px; }
+    @media (min-width: 940px){ .results-grid{ grid-template-columns: 1.2fr .8fr; } }
+    .panel{ border:1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); backdrop-filter: blur(10px); border-radius:18px; padding:22px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .panel h3{ margin:0 0 12px; font-size:16px; letter-spacing:.2px; }
+    .redact{ height:12px; border-radius:8px; background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.18), rgba(255,255,255,.06)); background-size:200% 100%; animation: shimmer 1.2s linear infinite; }
+    .redact-lg{ height:44px; border-radius:12px; filter: blur(1.2px); background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.14), rgba(255,255,255,.06)); }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+    .chip{ height:28px; border-radius:999px; padding:0 10px; display:flex; align-items:center; border:1px solid var(--border); background: var(--card); }
+    .nft-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+    .nft{ aspect-ratio:1/1; border-radius:10px; background: radial-gradient(120% 120% at 20% 10%, rgba(167,139,250,.25), transparent 40%),
+                          radial-gradient(120% 120% at 80% 80%, rgba(6,182,212,.25), transparent 40%),
+                          linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+          border:1px solid var(--border); filter: blur(1px) saturate(0.9); }
+    .mini{ display:flex; align-items:center; gap:10px; }
+    .mini .ring{ width:38px; height:38px; }
+    .row{ display:flex; align-items:center; gap:10px; }
+    .grow{ flex:1; }
+    a.muted{ color: var(--muted); text-decoration: none; }
+    a.muted:hover{ text-decoration: underline; }
+
+    @media (min-width: 880px){
+      .hero{ grid-template-columns: 1.2fr .8fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-animated" aria-hidden="true">
+    <div class="blob"></div>
+    <div class="blob"></div>
+    <div class="blob"></div>
+  </div>
+
+  <div class="container">
+    <header>
+      <a href="#" class="brand" aria-label="SolaStats AI">
+        <svg class="logo-svg" width="36" height="36" viewBox="0 0 48 48" fill="none" role="img" aria-label="SolaStats AI logo">
+          <defs>
+            <linearGradient id="g1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#a78bfa"/>
+              <stop offset="0.6" stop-color="#22c55e"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+          <rect x="3" y="3" width="42" height="42" rx="10" fill="url(#g1)" opacity="0.18"/>
+          <path d="M12 18c3-4 8-6 12-6 6 0 11 3 11 7 0 5-5 7-12 7-3 0-6 1-8 3" stroke="url(#g1)" stroke-width="3.2" stroke-linecap="round"/>
+          <path d="M36 30c-3 4-8 6-12 6-6 0-11-3-11-7 0-5 5-7 12-7 3 0 6-1 8-3" stroke="url(#g1)" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+        </svg>
+        <span>SolaStats&nbsp;AI</span>
+      </a>
+      <div class="pill">Beta • Solana wallet insights</div>
+    </header>
+
+    <main id="view-input" class="hero">
+      <section class="card">
+        <h1 class="gradient">Solana portfolio insights in seconds</h1>
+        <p class="lead">Paste a wallet address and let the system do the rest. Modern UI. Full privacy. No sign‑in.</p>
+        <form id="analyze-form" autocomplete="off" novalidate>
+          <div class="input-wrap">
+            <div class="field">
+              <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Zm6.53 12.97 4.5 4.5" stroke="#cbd5e1" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <input id="address" name="address" inputmode="latin" spellcheck="false" placeholder="Paste a Solana wallet address (Base58)" aria-label="Wallet address" required />
+            </div>
+            <button type="submit" class="btn">Analyze</button>
+          </div>
+          <div class="disclaimer">For educational purposes only. Not financial advice.</div>
+        </form>
+      </section>
+
+      <aside class="card" aria-hidden="true">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;opacity:.9">
+          <div class="ring" aria-hidden="true"></div>
+          <div>
+            <div style="font-weight:700;letter-spacing:.2px">Designed for clarity</div>
+            <div style="color:var(--muted);font-size:13px">A professional, fast & elegant interface ready to plug into your API.</div>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="skeleton" style="width:78%"></span></div>
+          <div class="step"><span class="skeleton" style="width:64%"></span></div>
+          <div class="step"><span class="skeleton" style="width:86%"></span></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ====== RESULTS VIEW (Redacted) ====== -->
+    <section id="view-results" class="hidden">
+      <div class="card" style="margin-bottom:18px">
+        <div class="results-head">
+          <div class="ring" aria-hidden="true"></div>
+          <div>
+            <div style="font-weight:800;letter-spacing:.2px">StealthView™ — Redacted Preview</div>
+            <div class="status" style="margin:2px 0 0"><span class="dot"></span>Generating insights • Your data stays hidden until ready</div>
+          </div>
+          <span class="badge" style="margin-left:auto">Privacy‑first</span>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="skeleton" style="width:90%"></span></div>
+          <div class="step"><span class="skeleton" style="width:82%"></span></div>
+        </div>
+      </div>
+
+      <div class="results-grid">
+        <div class="panel">
+          <h3>Summary</h3>
+          <div class="redact" style="width:86%;margin-bottom:8px"></div>
+          <div class="redact" style="width:72%;margin-bottom:8px"></div>
+          <div class="redact" style="width:64%"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Top Holdings</h3>
+          <div class="row" style="margin-bottom:8px"><div class="redact" style="width:38%"></div><div class="grow"></div><div class="redact" style="width:22%"></div></div>
+          <div class="row" style="margin-bottom:8px"><div class="redact" style="width:44%"></div><div class="grow"></div><div class="redact" style="width:26%"></div></div>
+          <div class="row" style="margin-bottom:8px"><div class="redact" style="width:40%"></div><div class="grow"></div><div class="redact" style="width:24%"></div></div>
+          <div class="row"><div class="redact" style="width:46%"></div><div class="grow"></div><div class="redact" style="width:20%"></div></div>
+        </div>
+
+        <div class="panel">
+          <h3>Risk & Signals</h3>
+          <div class="chips">
+            <div class="chip"><span class="redact" style="width:80px"></span></div>
+            <div class="chip"><span class="redact" style="width:92px"></span></div>
+            <div class="chip"><span class="redact" style="width:74px"></span></div>
+            <div class="chip"><span class="redact" style="width:88px"></span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>NFTs</h3>
+          <div class="nft-grid">
+            <div class="nft"></div>
+            <div class="nft"></div>
+            <div class="nft"></div>
+            <div class="nft"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      © <span id="year"></span> SolaStats AI • <a class="muted" href="#">Privacy Policy</a>
+    </footer>
+  </div>
+
+  <!-- ====== Loader Overlay ====== -->
+  <div id="overlay" class="overlay" aria-live="polite" aria-busy="false">
+    <div class="loader-card" role="dialog" aria-modal="true" aria-label="Wallet analysis in progress">
+      <div class="loader-head">
+        <div class="ring" aria-hidden="true"></div>
+        <div>
+          <div style="font-weight:800;letter-spacing:.2px">Analyzing wallet…</div>
+          <div class="status"><span class="dot"></span>Connected to node • Processing on‑chain data</div>
+        </div>
+      </div>
+      <div class="steps" style="margin-top:18px">
+        <div class="step"><span class="skeleton" style="width:92%"></span></div>
+        <div class="step"><span class="skeleton" style="width:80%"></span></div>
+        <div class="step"><span class="skeleton" style="width:88%"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('analyze-form');
+    const address = document.getElementById('address');
+    const overlay = document.getElementById('overlay');
+    const yearEl = document.getElementById('year');
+    const viewInput = document.getElementById('view-input');
+    const viewResults = document.getElementById('view-results');
+    yearEl.textContent = new Date().getFullYear();
+
+    function goResults(){
+      viewInput.classList.add('hidden');
+      viewResults.classList.remove('hidden');
+      document.querySelector('.pill').textContent = 'StealthView™ active';
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      // 1) Show a short overlay to feel responsive
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-busy', 'true');
+      address.setAttribute('readonly', 'true');
+      const btn = form.querySelector('button');
+      btn.disabled = true; btn.textContent = 'Processing…';
+      // 2) Transition to the redacted results view
+      setTimeout(() => { overlay.classList.remove('show'); goResults(); }, 650);
+    });
+
+    address.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        form.dispatchEvent(new Event('submit', { cancelable:true }));
+      }
+    });
+  </script>
+</body>
+</html>
